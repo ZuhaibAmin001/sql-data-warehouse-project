@@ -1,0 +1,218 @@
+/*
+===============================================================================
+Quality Checks: Silver Layer
+===============================================================================
+
+Script Purpose:
+    This script performs data quality and validation checks on the Silver layer.
+
+    The checks cover:
+        - Duplicate records
+        - NULL values
+        - Unwanted spaces
+        - Invalid or negative values
+        - Date consistency
+        - Data standardization
+        - Business rule validation
+
+Expected Result:
+    Ideally, the queries should return no rows for invalid-data checks.
+    DISTINCT queries are used to review standardized values.
+
+WARNING:
+    This script only checks the data. It does NOT modify or delete any data.
+===============================================================================
+*/
+
+
+/*=============================================================================
+  CRM CUSTOMER INFORMATION
+=============================================================================*/
+
+-- Check for duplicate or NULL customer IDs
+SELECT
+    cst_id,
+    COUNT(*) AS count_records
+FROM silver.crm_cust_info
+GROUP BY cst_id
+HAVING COUNT(*) > 1
+    OR cst_id IS NULL;
+
+
+-- Check for unwanted spaces in customer names
+SELECT
+    cst_firstname,
+    cst_lastname
+FROM silver.crm_cust_info
+WHERE cst_firstname != TRIM(cst_firstname)
+   OR cst_lastname != TRIM(cst_lastname);
+
+
+-- Check standardized gender values
+SELECT DISTINCT
+    cst_gndr
+FROM silver.crm_cust_info
+ORDER BY cst_gndr;
+
+
+-- Check standardized marital-status values
+SELECT DISTINCT
+    cst_material_status
+FROM silver.crm_cust_info
+ORDER BY cst_material_status;
+
+
+/*=============================================================================
+  CRM PRODUCT INFORMATION
+=============================================================================*/
+
+-- Check for duplicate or NULL product IDs
+SELECT
+    prd_id,
+    COUNT(*) AS count_records
+FROM silver.crm_prd_info
+GROUP BY prd_id
+HAVING COUNT(*) > 1
+    OR prd_id IS NULL;
+
+
+-- Check for unwanted spaces in product names
+SELECT
+    prd_nm
+FROM silver.crm_prd_info
+WHERE prd_nm != TRIM(prd_nm);
+
+
+-- Check for NULL or negative product costs
+SELECT
+    prd_id,
+    prd_cost
+FROM silver.crm_prd_info
+WHERE prd_cost IS NULL
+   OR prd_cost < 0;
+
+
+-- Check for invalid product date ranges
+SELECT
+    prd_id,
+    prd_key,
+    prd_start,
+    prd_end_dt
+FROM silver.crm_prd_info
+WHERE prd_end_dt IS NOT NULL
+  AND prd_start > prd_end_dt;
+
+
+/*=============================================================================
+  CRM SALES DETAILS
+=============================================================================*/
+
+-- Check for NULL or invalid sales values
+SELECT
+    sls_ord_num,
+    sls_sales,
+    sls_quantity,
+    sls_price
+FROM silver.crm_sales_details
+WHERE sls_sales IS NULL
+   OR sls_sales <= 0;
+
+
+-- Check for NULL or invalid quantities
+SELECT
+    sls_ord_num,
+    sls_quantity
+FROM silver.crm_sales_details
+WHERE sls_quantity IS NULL
+   OR sls_quantity <= 0;
+
+
+-- Check sales calculation
+SELECT
+    sls_ord_num,
+    sls_sales,
+    sls_quantity,
+    sls_price
+FROM silver.crm_sales_details
+WHERE sls_sales != sls_quantity * sls_price;
+
+
+-- Check for invalid sales date sequence
+SELECT
+    sls_ord_num,
+    sls_order_dt,
+    sls_ship_dt,
+    sls_due_dt
+FROM silver.crm_sales_details
+WHERE sls_order_dt > sls_ship_dt
+   OR sls_ship_dt > sls_due_dt;
+
+
+/*=============================================================================
+  ERP CUSTOMER INFORMATION
+=============================================================================*/
+
+-- Check standardized gender values
+SELECT DISTINCT
+    gen
+FROM silver.erp_CUST_AZ12
+ORDER BY gen;
+
+
+-- Check for future birth dates
+SELECT
+    cid,
+    bdate
+FROM silver.erp_CUST_AZ12
+WHERE bdate > GETDATE();
+
+
+-- Check for unwanted spaces in customer IDs
+SELECT
+    cid
+FROM silver.erp_CUST_AZ12
+WHERE cid != TRIM(cid);
+
+
+/*=============================================================================
+  ERP LOCATION
+=============================================================================*/
+
+-- Review standardized country values
+SELECT DISTINCT
+    cntry
+FROM silver.erp_loc_a101
+ORDER BY cntry;
+
+
+-- Check for unwanted spaces in country values
+SELECT
+    cntry
+FROM silver.erp_loc_a101
+WHERE cntry != TRIM(cntry);
+
+
+/*=============================================================================
+  ERP PRODUCT CATEGORY
+=============================================================================*/
+
+-- Review category and maintenance values
+SELECT DISTINCT
+    cat,
+    subcat,
+    maintenance
+FROM silver.erp_px_cat_g1v2
+ORDER BY cat, subcat;
+
+
+-- Check for unwanted spaces
+SELECT
+    id,
+    cat,
+    subcat,
+    maintenance
+FROM silver.erp_px_cat_g1v2
+WHERE id != TRIM(id)
+   OR cat != TRIM(cat)
+   OR subcat != TRIM(subcat)
+   OR maintenance != TRIM(maintenance);
